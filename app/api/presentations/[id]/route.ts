@@ -12,7 +12,7 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
-  const presentation = getPresentation(id);
+  const presentation = await getPresentation(id);
   if (!presentation) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
@@ -24,7 +24,7 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
-  const existing = getPresentation(id);
+  const existing = await getPresentation(id);
   if (!existing) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
@@ -51,7 +51,7 @@ export async function PUT(
       const titleMatch = markdown.match(/^#\s+(.+)$/m);
       const title = titleMatch ? titleMatch[1] : existing.title;
 
-      savePresentation(id, {
+      await savePresentation(id, {
         title,
         slides,
         createdAt: existing.createdAt,
@@ -72,10 +72,10 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
-  const existing = getPresentation(id);
+  const existing = await getPresentation(id);
   if (!existing) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
-  deletePresentation(id);
+  await deletePresentation(id);
   return NextResponse.json({ id, deleted: true });
 }

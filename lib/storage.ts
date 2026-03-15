@@ -1,8 +1,4 @@
-import { readFileSync, writeFileSync, existsSync, mkdirSync } from "fs";
-import { join } from "path";
-
-const DATA_DIR = join(process.cwd(), "data");
-const DB_PATH = join(DATA_DIR, "presentations.json");
+import { uploadToR2, getFromR2, deleteFromR2 } from "./r2";
 
 export interface Presentation {
   id: string;
@@ -11,25 +7,19 @@ export interface Presentation {
   createdAt: string;
 }
 
-function ensureDb(): Record<string, Presentation> {
-  if (!existsSync(DATA_DIR)) mkdirSync(DATA_DIR, { recursive: true });
-  if (!existsSync(DB_PATH)) writeFileSync(DB_PATH, "{}");
-  return JSON.parse(readFileSync(DB_PATH, "utf-8"));
+const metaKey = (id: string) => `presentations/${id}/_meta.json`;
+
+export async function savePresentation(id: string, data: Omit<Presentation, "id">) {
+  const presentation: Presentation = { id, ...data };
+  await uploadToR2(metaKey(id), JSON.stringify(presentation), "application/json");
 }
 
-export function savePresentation(id: string, data: Omit<Presentation, "id">) {
-  const db = ensureDb();
-  db[id] = { id, ...data };
-  writeFileSync(DB_PATH, JSON.stringify(db, null, 2));
+export async function getPresentation(id: string): Promise<Presentation | null> {
+  const raw = await getFromR2(metaKey(id));
+  if (!raw) return null;
+  return JSON.parse(raw) as Presentation;
 }
 
-export function getPresentation(id: string): Presentation | null {
-  const db = ensureDb();
-  return db[id] || null;
-}
-
-export function deletePresentation(id: string) {
-  const db = ensureDb();
-  delete db[id];
-  writeFileSync(DB_PATH, JSON.stringify(db, null, 2));
+export async function deletePresentation(id: string): Promise<void> {
+  await deleteFromR2(metaKey(id));
 }

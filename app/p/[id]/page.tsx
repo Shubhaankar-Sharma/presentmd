@@ -10,7 +10,7 @@ export default async function PresentationPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const presentation = getPresentation(id);
+  const presentation = await getPresentation(id);
   if (!presentation) notFound();
 
   return (

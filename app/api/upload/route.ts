@@ -37,7 +37,7 @@ export async function POST(req: NextRequest) {
     const title = titleMatch ? titleMatch[1] : mdFile.name.replace(".md", "");
 
     // Save presentation
-    savePresentation(id, {
+    await savePresentation(id, {
       title,
       slides,
       createdAt: new Date().toISOString(),
