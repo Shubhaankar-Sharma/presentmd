@@ -63,3 +63,108 @@ mark, .highlight {
 .bg-green { background: rgba(34, 197, 94, 0.15); padding: 1px 4px; border-radius: 2px; }
 .bg-blue { background: rgba(59, 130, 246, 0.15); padding: 1px 4px; border-radius: 2px; }
 .bg-yellow { background: rgba(234, 179, 8, 0.15); padding: 1px 4px; border-radius: 2px; }
+
+/* ==========================================================================
+   highlight.js — GitHub Dark theme (adapted for presentmd)
+   Provides syntax highlighting for fenced code blocks via rehype-highlight.
+   ========================================================================== */
+
+.hljs {
+  color: #c9d1d9;
+  background: #0a0a0a;
+}
+
+.hljs-doctag,
+.hljs-keyword,
+.hljs-meta .hljs-keyword,
+.hljs-template-tag,
+.hljs-template-variable,
+.hljs-type,
+.hljs-variable.language_ {
+  color: #ff7b72;
+}
+
+.hljs-title,
+.hljs-title.class_,
+.hljs-title.class_.inherited__,
+.hljs-title.function_ {
+  color: #d2a8ff;
+}
+
+.hljs-attr,
+.hljs-attribute,
+.hljs-literal,
+.hljs-meta,
+.hljs-number,
+.hljs-operator,
+.hljs-selector-attr,
+.hljs-selector-class,
+.hljs-selector-id,
+.hljs-variable {
+  color: #79c0ff;
+}
+
+.hljs-meta .hljs-string,
+.hljs-regexp,
+.hljs-string {
+  color: #a5d6ff;
+}
+
+.hljs-built_in,
+.hljs-symbol {
+  color: #ffa657;
+}
+
+.hljs-code,
+.hljs-comment,
+.hljs-formula {
+  color: #8b949e;
+}
+
+.hljs-name,
+.hljs-quote,
+.hljs-selector-pseudo,
+.hljs-selector-tag {
+  color: #7ee787;
+}
+
+.hljs-subst {
+  color: #c9d1d9;
+}
+
+.hljs-section {
+  color: #1f6feb;
+  font-weight: bold;
+}
+
+.hljs-bullet {
+  color: #f2cc60;
+}
+
+.hljs-emphasis {
+  color: #c9d1d9;
+  font-style: italic;
+}
+
+.hljs-strong {
+  color: #c9d1d9;
+  font-weight: bold;
+}
+
+.hljs-addition {
+  color: #aff5b4;
+  background-color: rgba(46, 160, 67, 0.15);
+}
+
+.hljs-deletion {
+  color: #ffdcd7;
+  background-color: rgba(248, 81, 73, 0.15);
+}
+
+/* Ensure inline code inside highlighted blocks doesn't get prose overrides */
+pre code.hljs {
+  background: transparent;
+  border: none;
+  padding: 0;
+  font-size: inherit;
+}

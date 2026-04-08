@@ -1,9 +1,12 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, isValidElement } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import rehypeRaw from "rehype-raw";
+import rehypeHighlight from "rehype-highlight";
+import type { Components } from "react-markdown";
+import JsonRenderBlock from "./JsonRenderBlock";
 
 export default function SlideViewer({ slides }: { slides: string[] }) {
   const [current, setCurrent] = useState(0);
@@ -28,11 +31,32 @@ export default function SlideViewer({ slides }: { slides: string[] }) {
   const slideContent = slides[current];
   const isTitleSlide = /^#\s+.+\n*(\*[^*]+\*)?$/.test(slideContent.trim());
 
+  /* Custom component overrides for ReactMarkdown */
+  const components: Components = {
+    pre({ children, ...rest }) {
+      /* Detect ```json-render fenced blocks and render without the <pre> wrapper.
+         react-markdown wraps code blocks in <pre><code class="language-...">. If we
+         only override `code`, the <pre> stays and applies prose/code-block styles. */
+      if (isValidElement(children)) {
+        const childProps = children.props as Record<string, unknown>;
+        const className = typeof childProps.className === "string" ? childProps.className : "";
+        if (className.includes("language-json-render")) {
+          const raw = String(childProps.children).replace(/\n$/, "");
+          return <JsonRenderBlock specString={raw} />;
+        }
+      }
+      return <pre {...rest}>{children}</pre>;
+    },
+  };
+
   return (
     <div className="h-screen flex flex-col bg-black select-none">
       {/* Slide area */}
       <div className="flex-1 flex items-center justify-center overflow-hidden"
            onClick={(e) => {
+             // Don't navigate when clicking interactive elements (tabs, accordions, etc.)
+             const target = e.target as HTMLElement;
+             if (target.closest("button, a, input, select, textarea, [role='button']")) return;
              const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
              if (e.clientX > rect.left + rect.width / 2) next(); else prev();
            }}>
@@ -62,7 +86,11 @@ export default function SlideViewer({ slides }: { slides: string[] }) {
               prose-li:text-[#aaa] prose-li:text-[15px]
               prose-blockquote:border-[#333] prose-blockquote:text-[#888]
               prose-hr:border-[#1a1a1a]">
-              <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeRaw]}>
+              <ReactMarkdown
+                remarkPlugins={[remarkGfm]}
+                rehypePlugins={[rehypeRaw, [rehypeHighlight, { plainText: ["json-render"] }]]}
+                components={components}
+              >
                 {slideContent}
               </ReactMarkdown>
             </article>

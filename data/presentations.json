@@ -20,5 +20,41 @@
       "# Next Steps\n\n1. <mark>Flash Orin to JetPack 6</mark> — native 16 SM experiment without MPS artifacts\n\n2. Sweep SM budgets (16, 24, 32, 48, 72 SMs) to map the overhead-benefit curve\n\n3. Longer runs (20K frames) with multiple replicates + bootstrap CIs\n\n4. Greedy scheduler comparison at 16 SMs (currently only Event has contention)"
     ],
     "createdAt": "2026-03-15T00:08:21.843Z"
+  },
+  "GHw6lpPeqf": {
+    "id": "GHw6lpPeqf",
+    "title": "Test Slide",
+    "slides": [
+      "# JSON Render Test\n\n*Test*",
+      "# Test Slide\n\nHere is a json-render block:\n\n```json-render\n{\n  \"root\": \"main\",\n  \"elements\": {\n    \"main\": {\n      \"type\": \"Stack\",\n      \"props\": { \"direction\": \"vertical\", \"gap\": \"md\" },\n      \"children\": [\"heading\", \"alert\"]\n    },\n    \"heading\": {\n      \"type\": \"Heading\",\n      \"props\": { \"content\": \"Hello World\", \"level\": \"2\" }\n    },\n    \"alert\": {\n      \"type\": \"Alert\",\n      \"props\": { \"title\": \"Test\", \"message\": \"This is a test alert\", \"variant\": \"success\" }\n    }\n  }\n}\n```"
+    ],
+    "createdAt": "2026-04-04T13:51:32.784Z"
+  },
+  "qXekGca6bJ": {
+    "id": "qXekGca6bJ",
+    "title": "Test Slide",
+    "slides": [
+      "# JSON Render Test\n\n*Test*",
+      "# Test Slide\n\nHere is a json-render block:\n\n```json-render\n{\n  \"root\": \"main\",\n  \"elements\": {\n    \"main\": {\n      \"type\": \"Stack\",\n      \"props\": { \"direction\": \"vertical\", \"gap\": \"md\" },\n      \"children\": [\"heading\", \"alert\"]\n    },\n    \"heading\": {\n      \"type\": \"Heading\",\n      \"props\": { \"content\": \"Hello World\", \"level\": \"2\" }\n    },\n    \"alert\": {\n      \"type\": \"Alert\",\n      \"props\": { \"title\": \"Test\", \"message\": \"This is a test alert\", \"variant\": \"success\" }\n    }\n  }\n}\n```"
+    ],
+    "createdAt": "2026-04-04T13:54:38.253Z"
+  },
+  "Jl_vzPLuo2": {
+    "id": "Jl_vzPLuo2",
+    "title": "Test Slide",
+    "slides": [
+      "# JSON Render Test\n\n*Test*",
+      "# Test Slide\n\nHere is a json-render block:\n\n```json-render\n{\n  \"root\": \"main\",\n  \"elements\": {\n    \"main\": {\n      \"type\": \"Stack\",\n      \"props\": { \"direction\": \"vertical\", \"gap\": \"md\" },\n      \"children\": [\"heading\", \"alert\"]\n    },\n    \"heading\": {\n      \"type\": \"Heading\",\n      \"props\": { \"content\": \"Hello World\", \"level\": \"2\" }\n    },\n    \"alert\": {\n      \"type\": \"Alert\",\n      \"props\": { \"title\": \"Test\", \"message\": \"This is a test alert\", \"variant\": \"success\" }\n    }\n  }\n}\n```"
+    ],
+    "createdAt": "2026-04-04T13:59:15.786Z"
+  },
+  "IKkqm2VRtK": {
+    "id": "IKkqm2VRtK",
+    "title": "Test Slide",
+    "slides": [
+      "# JSON Render Test\n\n*Test*",
+      "# Test Slide\n\nHere is a json-render block:\n\n```json-render\n{\n  \"root\": \"main\",\n  \"elements\": {\n    \"main\": {\n      \"type\": \"Stack\",\n      \"props\": { \"direction\": \"vertical\", \"gap\": \"md\" },\n      \"children\": [\"heading\", \"alert\"]\n    },\n    \"heading\": {\n      \"type\": \"Heading\",\n      \"props\": { \"content\": \"Hello World\", \"level\": \"2\" }\n    },\n    \"alert\": {\n      \"type\": \"Alert\",\n      \"props\": { \"title\": \"Test\", \"message\": \"This is a test alert\", \"variant\": \"success\" }\n    }\n  }\n}\n```"
+    ],
+    "createdAt": "2026-04-04T13:59:59.595Z"
   }
 }
