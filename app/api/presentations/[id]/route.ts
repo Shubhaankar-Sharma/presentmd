@@ -55,6 +55,7 @@ export async function PUT(
         title,
         slides,
         createdAt: existing.createdAt,
+        presenterToken: existing.presenterToken,
       });
 
       return NextResponse.json({ id, slideCount: slides.length, updated: true });

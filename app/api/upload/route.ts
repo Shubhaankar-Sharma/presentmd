@@ -17,6 +17,7 @@ export async function POST(req: NextRequest) {
     }
 
     const id = nanoid(10);
+    const presenterToken = nanoid(21);
     const r2PublicUrl = process.env.R2_PUBLIC_URL || "";
 
     // Upload images to R2
@@ -41,9 +42,16 @@ export async function POST(req: NextRequest) {
       title,
       slides,
       createdAt: new Date().toISOString(),
+      presenterToken,
     });
 
-    return NextResponse.json({ id, url: `/p/${id}`, slideCount: slides.length });
+    return NextResponse.json({
+      id,
+      url: `/p/${id}`,
+      slideCount: slides.length,
+      presenterToken,
+      presenterUrl: `/p/${id}?present=${presenterToken}`,
+    });
   } catch (e: unknown) {
     const message = e instanceof Error ? e.message : "Unknown error";
     return NextResponse.json({ error: message }, { status: 500 });

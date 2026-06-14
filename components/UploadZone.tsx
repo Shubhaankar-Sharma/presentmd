@@ -6,12 +6,14 @@ export default function UploadZone() {
   const [files, setFiles] = useState<File[]>([]);
   const [uploading, setUploading] = useState(false);
   const [shareUrl, setShareUrl] = useState<string | null>(null);
+  const [presenterUrl, setPresenterUrl] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [dragOver, setDragOver] = useState(false);
 
   const handleFiles = useCallback((incoming: FileList) => {
     setFiles(Array.from(incoming));
     setShareUrl(null);
+    setPresenterUrl(null);
     setError(null);
   }, []);
 
@@ -35,6 +37,7 @@ export default function UploadZone() {
       if (!res.ok) throw new Error(await res.text());
       const data = await res.json();
       setShareUrl(`${window.location.origin}/p/${data.id}`);
+      if (data.presenterUrl) setPresenterUrl(`${window.location.origin}${data.presenterUrl}`);
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : "Upload failed");
     } finally {
@@ -95,9 +98,18 @@ export default function UploadZone() {
       {error && <p className="text-red-400 text-sm">{error}</p>}
 
       {shareUrl && (
-        <div className="bg-green-900/30 border border-green-700 rounded-lg p-4 space-y-2">
+        <div className="bg-green-900/30 border border-green-700 rounded-lg p-4 space-y-3">
           <p className="text-green-400 font-medium">Presentation created!</p>
-          <a href={shareUrl} className="text-blue-400 underline break-all">{shareUrl}</a>
+          <div className="space-y-1">
+            <p className="text-xs text-gray-500 uppercase tracking-wide">Share link (viewers)</p>
+            <a href={shareUrl} className="text-blue-400 underline break-all">{shareUrl}</a>
+          </div>
+          {presenterUrl && (
+            <div className="space-y-1">
+              <p className="text-xs text-gray-500 uppercase tracking-wide">Presenter link (keep private — drives live sync)</p>
+              <a href={presenterUrl} className="text-blue-400 underline break-all">{presenterUrl}</a>
+            </div>
+          )}
         </div>
       )}
     </div>

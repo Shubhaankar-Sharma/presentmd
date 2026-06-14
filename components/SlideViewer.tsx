@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, isValidElement } from "react";
+import { useState, useEffect, useCallback, useRef, isValidElement } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import rehypeRaw from "rehype-raw";
@@ -8,25 +8,97 @@ import rehypeHighlight from "rehype-highlight";
 import type { Components } from "react-markdown";
 import JsonRenderBlock from "./JsonRenderBlock";
 
-export default function SlideViewer({ slides }: { slides: string[] }) {
+export default function SlideViewer({
+  slides,
+  presentationId,
+  isPresenter = false,
+  presenterToken,
+}: {
+  slides: string[];
+  presentationId: string;
+  isPresenter?: boolean;
+  presenterToken?: string;
+}) {
   const [current, setCurrent] = useState(0);
   const total = slides.length;
+
+  // Live-sync (viewer) state
+  const [liveActive, setLiveActive] = useState(false); // a presenter session exists
+  const [liveSlide, setLiveSlide] = useState(0);       // latest broadcast slide
+  const [detached, setDetached] = useState(false);     // viewer navigated away
 
   const next = useCallback(() => setCurrent((c) => Math.min(c + 1, total - 1)), [total]);
   const prev = useCallback(() => setCurrent((c) => Math.max(c - 1, 0)), []);
 
+  // When a non-presenter navigates manually, detach from the live feed.
+  const detach = useCallback(() => {
+    if (!isPresenter) setDetached(true);
+  }, [isPresenter]);
+
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if (e.key === "ArrowRight" || e.key === " " || e.key === "ArrowDown") {
-        e.preventDefault(); next();
+        e.preventDefault(); detach(); next();
       } else if (e.key === "ArrowLeft" || e.key === "ArrowUp") {
-        e.preventDefault(); prev();
-      } else if (e.key === "Home") { setCurrent(0); }
-      else if (e.key === "End") { setCurrent(total - 1); }
+        e.preventDefault(); detach(); prev();
+      } else if (e.key === "Home") { detach(); setCurrent(0); }
+      else if (e.key === "End") { detach(); setCurrent(total - 1); }
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [next, prev, total]);
+  }, [next, prev, total, detach]);
+
+  // PRESENTER: broadcast the current slide (debounced) whenever it changes.
+  useEffect(() => {
+    if (!isPresenter || !presenterToken) return;
+    const t = setTimeout(() => {
+      fetch(`/api/presentations/${presentationId}/live`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ slide: current, token: presenterToken }),
+      }).catch(() => {});
+    }, 150);
+    return () => clearTimeout(t);
+  }, [current, isPresenter, presenterToken, presentationId]);
+
+  // VIEWER: poll the live state and follow it unless detached.
+  const detachedRef = useRef(detached);
+  detachedRef.current = detached;
+  useEffect(() => {
+    if (isPresenter) return;
+    let cancelled = false;
+    const poll = async () => {
+      try {
+        const res = await fetch(`/api/presentations/${presentationId}/live`, {
+          cache: "no-store",
+        });
+        if (!res.ok) return;
+        const data: { slide: number; live: boolean; updatedAt: string | null } =
+          await res.json();
+        if (cancelled) return;
+        // Respect the server's live flag: a stale (or absent) session reports
+        // live:false, so the deck behaves like a normal standalone deck.
+        setLiveActive(data.live);
+        if (data.live) {
+          setLiveSlide(data.slide);
+          if (!detachedRef.current) {
+            setCurrent(Math.min(Math.max(data.slide, 0), total - 1));
+          }
+        }
+      } catch {
+        /* ignore transient errors */
+      }
+    };
+    poll();
+    const interval = setInterval(poll, 1200);
+    return () => { cancelled = true; clearInterval(interval); };
+  }, [isPresenter, presentationId, total]);
+
+  // VIEWER: re-attach to the live feed and jump to the broadcast slide.
+  const rejoin = useCallback(() => {
+    setDetached(false);
+    setCurrent(Math.min(Math.max(liveSlide, 0), total - 1));
+  }, [liveSlide, total]);
 
   const slideContent = slides[current];
   const isTitleSlide = /^#\s+.+\n*(\*[^*]+\*)?$/.test(slideContent.trim());
@@ -51,6 +123,33 @@ export default function SlideViewer({ slides }: { slides: string[] }) {
 
   return (
     <div className="h-screen flex flex-col bg-black select-none">
+      {/* Live-sync status overlay */}
+      {isPresenter && (
+        <div className="absolute top-4 right-4 z-20 flex items-center gap-1.5
+          px-2.5 py-1 rounded-full bg-red-500/10 border border-red-500/30
+          text-red-400 text-[11px] font-mono tracking-wider">
+          <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
+          PRESENTING
+        </div>
+      )}
+      {!isPresenter && liveActive && (
+        detached ? (
+          <button onClick={rejoin}
+            className="absolute top-4 right-4 z-20 flex items-center gap-1.5
+              px-2.5 py-1 rounded-full bg-white/5 border border-[#333]
+              text-[#aaa] hover:text-white hover:border-[#555] text-[11px] font-mono tracking-wider transition-colors">
+            <span className="w-1.5 h-1.5 rounded-full bg-green-500" />
+            LIVE — rejoin
+          </button>
+        ) : (
+          <div className="absolute top-4 right-4 z-20 flex items-center gap-1.5
+            px-2.5 py-1 rounded-full bg-green-500/10 border border-green-500/30
+            text-green-400 text-[11px] font-mono tracking-wider">
+            <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
+            LIVE
+          </div>
+        )
+      )}
       {/* Slide area */}
       <div className="flex-1 flex items-center justify-center overflow-hidden"
            onClick={(e) => {
@@ -58,6 +157,7 @@ export default function SlideViewer({ slides }: { slides: string[] }) {
              const target = e.target as HTMLElement;
              if (target.closest("button, a, input, select, textarea, [role='button']")) return;
              const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+             detach();
              if (e.clientX > rect.left + rect.width / 2) next(); else prev();
            }}>
         <div className={`w-full max-w-[1200px] mx-auto h-[calc(100vh-48px)]
@@ -101,7 +201,7 @@ export default function SlideViewer({ slides }: { slides: string[] }) {
       {/* Bottom bar */}
       <div className="h-12 flex items-center justify-between px-6 border-t border-[#1a1a1a] bg-black/80 backdrop-blur-sm">
         <div className="flex items-center gap-4">
-          <button onClick={prev} disabled={current === 0}
+          <button onClick={() => { detach(); prev(); }} disabled={current === 0}
             className="text-[#666] hover:text-white disabled:opacity-20 text-xs font-mono transition-colors">
             ← prev
           </button>
@@ -116,7 +216,7 @@ export default function SlideViewer({ slides }: { slides: string[] }) {
           </div>
         </div>
         <div className="flex items-center gap-4">
-          <button onClick={next} disabled={current === total - 1}
+          <button onClick={() => { detach(); next(); }} disabled={current === total - 1}
             className="text-[#666] hover:text-white disabled:opacity-20 text-xs font-mono transition-colors">
             next →
           </button>

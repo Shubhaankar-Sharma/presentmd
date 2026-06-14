@@ -163,6 +163,28 @@ export const catalog = defineCatalog(schema, {
       }),
       description: "Image element",
     },
+
+    // --- Diagrams ---
+    AgentLoop: {
+      props: z.object({
+        steps: z.array(z.string()).nullable(),
+      }),
+      description: "Circular agent-cycle diagram (Think → Act → Observe → repeat). Props: steps? (string[]).",
+    },
+    Flow: {
+      props: z.object({
+        steps: z.array(z.object({ label: z.string(), desc: z.string().nullable() })),
+      }),
+      description: "Horizontal pipeline of numbered step cards connected by arrows. Props: steps ({label, desc?}[]).",
+    },
+    Fanout: {
+      props: z.object({
+        source: z.string(),
+        workers: z.array(z.string()),
+        merge: z.string().nullable(),
+      }),
+      description: "Orchestrator fan-out: a source node branches to N workers that converge into a merge node. Props: source, workers (string[]), merge?.",
+    },
   },
   actions: {},
 });
@@ -418,6 +440,12 @@ export const { registry } = defineRegistry(catalog, {
         }}
       />
     ),
+
+    AgentLoop: ({ props }) => <AgentLoopDiagram steps={props.steps} />,
+    Flow: ({ props }) => <FlowDiagram steps={props.steps} />,
+    Fanout: ({ props }) => (
+      <FanoutDiagram source={props.source} workers={props.workers} merge={props.merge} />
+    ),
   },
   actions: {},
 });
@@ -598,6 +626,248 @@ function PillClient({ items, statePath }: { items: { label: string; value: strin
           </button>
         );
       })}
+    </div>
+  );
+}
+
+/* ---------- Diagram components ---------- */
+
+const DIAGRAM_INK = "#e8e8e8";
+const DIAGRAM_DIM = "#888";
+
+function AgentLoopDiagram({ steps }: { steps: string[] | null }) {
+  const labels = steps && steps.length ? steps : ["Think", "Act → use a tool", "Observe"];
+  const n = labels.length;
+  const W = 460;
+  const H = 320;
+  const cx = W / 2;
+  const cy = H / 2 + 6;
+  const R = 112;
+  const nodeW = 132;
+  const nodeH = 46;
+
+  const pts = labels.map((_, i) => {
+    const a = -Math.PI / 2 + (i * 2 * Math.PI) / n;
+    return { x: cx + R * Math.cos(a), y: cy + R * Math.sin(a), a };
+  });
+
+  const arc = (from: { x: number; y: number }, to: { x: number; y: number }) => {
+    const mx = (from.x + to.x) / 2;
+    const my = (from.y + to.y) / 2;
+    const dx = mx - cx;
+    const dy = my - cy;
+    const len = Math.hypot(dx, dy) || 1;
+    const bow = 42;
+    const cxp = mx + (dx / len) * bow;
+    const cyp = my + (dy / len) * bow;
+    return `M ${from.x} ${from.y} Q ${cxp} ${cyp} ${to.x} ${to.y}`;
+  };
+
+  const trim = (from: { x: number; y: number }, to: { x: number; y: number }) => {
+    const dx = to.x - from.x;
+    const dy = to.y - from.y;
+    const d = Math.hypot(dx, dy) || 1;
+    const inset = nodeH * 0.85;
+    return {
+      from: { x: from.x + (dx / d) * inset, y: from.y + (dy / d) * inset },
+      to: { x: to.x - (dx / d) * inset, y: to.y - (dy / d) * inset },
+    };
+  };
+
+  return (
+    <div style={{ width: "100%", display: "flex", justifyContent: "center" }}>
+      <svg viewBox={`0 0 ${W} ${H}`} style={{ width: "100%", maxWidth: `${W}px`, height: "auto" }} role="img" aria-label={`Agent loop: ${labels.join(" then ")}, repeat`}>
+        <defs>
+          <linearGradient id="al-node" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="#15151b" />
+            <stop offset="100%" stopColor="#0b0b0e" />
+          </linearGradient>
+          <linearGradient id="al-stroke" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0%" stopColor="#3b82f6" />
+            <stop offset="100%" stopColor="#a855f7" />
+          </linearGradient>
+          <marker id="al-arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+            <path d="M 0 0 L 10 5 L 0 10 z" fill="#7c8cff" />
+          </marker>
+        </defs>
+
+        {pts.map((p, i) => {
+          const q = pts[(i + 1) % n];
+          const { from, to } = trim(p, q);
+          return (
+            <path
+              key={`arc-${i}`}
+              d={arc(from, to)}
+              fill="none"
+              stroke="url(#al-stroke)"
+              strokeWidth={2}
+              strokeLinecap="round"
+              strokeDasharray="6 7"
+              markerEnd="url(#al-arrow)"
+              style={{ animation: "jr-dash 1.4s linear infinite", opacity: 0.9 }}
+            />
+          );
+        })}
+
+        {pts.map((p, i) => (
+          <g key={`node-${i}`}>
+            <rect x={p.x - nodeW / 2} y={p.y - nodeH / 2} width={nodeW} height={nodeH} rx={12} fill="url(#al-node)" stroke="#2a2a33" strokeWidth={1} />
+            <rect x={p.x - nodeW / 2} y={p.y - nodeH / 2} width={nodeW} height={nodeH} rx={12} fill="none" stroke="url(#al-stroke)" strokeWidth={1} opacity={0.35} />
+            <text x={p.x} y={p.y + 4} fill={DIAGRAM_INK} fontSize="12.5" fontWeight={600} textAnchor="middle">{labels[i]}</text>
+          </g>
+        ))}
+      </svg>
+    </div>
+  );
+}
+
+function FlowDiagram({ steps }: { steps: { label: string; desc: string | null }[] }) {
+  return (
+    <div style={{ display: "flex", flexWrap: "wrap", alignItems: "stretch", gap: "0.25rem", justifyContent: "flex-start" }}>
+      {steps.map((s, i) => (
+        <div key={i} style={{ display: "flex", alignItems: "stretch" }}>
+          <div
+            style={{
+              minWidth: "140px",
+              maxWidth: "200px",
+              background: "linear-gradient(180deg,#15151b 0%,#0b0b0e 100%)",
+              border: "1px solid #23232b",
+              borderRadius: "0.625rem",
+              padding: "0.75rem 0.875rem",
+              display: "flex",
+              flexDirection: "column",
+              gap: "0.35rem",
+            }}
+          >
+            <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+              <span
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  width: "22px",
+                  height: "22px",
+                  borderRadius: "9999px",
+                  fontSize: "0.75rem",
+                  fontWeight: 700,
+                  color: "#fff",
+                  background: "linear-gradient(135deg,#3b82f6,#a855f7)",
+                  flexShrink: 0,
+                }}
+              >
+                {i + 1}
+              </span>
+              <span style={{ color: "#e8e8e8", fontSize: "0.875rem", fontWeight: 600, lineHeight: 1.2 }}>{s.label}</span>
+            </div>
+            {s.desc && <span style={{ color: DIAGRAM_DIM, fontSize: "0.75rem", lineHeight: 1.45 }}>{s.desc}</span>}
+          </div>
+          {i < steps.length - 1 && (
+            <div style={{ display: "flex", alignItems: "center", padding: "0 0.25rem" }} aria-hidden="true">
+              <span style={{ color: "#7c8cff", fontSize: "1.25rem", fontWeight: 700, animation: "jr-nudge 1.6s ease-in-out infinite" }}>→</span>
+            </div>
+          )}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function FanoutDiagram({ source, workers, merge }: { source: string; workers: string[]; merge: string | null }) {
+  const W = 520;
+  const padY = 30;
+  const rowH = 52;
+  const H = Math.max(180, padY * 2 + workers.length * rowH);
+  const cy = H / 2;
+  const srcX = 18;
+  const srcW = 120;
+  const srcH = 50;
+  const wkX = 210;
+  const wkW = 150;
+  const wkH = 40;
+  const mgW = 120;
+  const mgH = 50;
+  const mgX = W - mgW - 18;
+  const hasMerge = merge != null && merge !== "";
+
+  const srcRight = { x: srcX + srcW, y: cy };
+  const mgLeft = { x: mgX, y: cy };
+
+  const workerCenters = workers.map((_, i) => {
+    const slotH = (H - padY * 2) / workers.length;
+    const y = padY + slotH * i + slotH / 2;
+    return { y };
+  });
+
+  const curve = (x1: number, y1: number, x2: number, y2: number) => {
+    const mx = (x1 + x2) / 2;
+    return `M ${x1} ${y1} C ${mx} ${y1} ${mx} ${y2} ${x2} ${y2}`;
+  };
+
+  return (
+    <div style={{ width: "100%", display: "flex", justifyContent: "center" }}>
+      <svg viewBox={`0 0 ${W} ${H}`} style={{ width: "100%", maxWidth: `${W}px`, height: "auto" }} role="img" aria-label={`Fan-out from ${source} to ${workers.length} workers${hasMerge ? `, merging into ${merge}` : ""}`}>
+        <defs>
+          <linearGradient id="fo-node" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="#15151b" />
+            <stop offset="100%" stopColor="#0b0b0e" />
+          </linearGradient>
+          <linearGradient id="fo-stroke" x1="0" y1="0" x2="1" y2="0">
+            <stop offset="0%" stopColor="#3b82f6" />
+            <stop offset="100%" stopColor="#a855f7" />
+          </linearGradient>
+          <marker id="fo-arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse">
+            <path d="M 0 0 L 10 5 L 0 10 z" fill="#7c8cff" />
+          </marker>
+        </defs>
+
+        {workerCenters.map((w, i) => (
+          <path
+            key={`s-${i}`}
+            d={curve(srcRight.x, srcRight.y, wkX, w.y)}
+            fill="none"
+            stroke="url(#fo-stroke)"
+            strokeWidth={1.75}
+            strokeDasharray="5 6"
+            markerEnd="url(#fo-arrow)"
+            style={{ animation: "jr-dash 1.4s linear infinite", opacity: 0.85 }}
+          />
+        ))}
+
+        {hasMerge &&
+          workerCenters.map((w, i) => (
+            <path
+              key={`m-${i}`}
+              d={curve(wkX + wkW, w.y, mgLeft.x, mgLeft.y)}
+              fill="none"
+              stroke="url(#fo-stroke)"
+              strokeWidth={1.75}
+              strokeDasharray="5 6"
+              markerEnd="url(#fo-arrow)"
+              style={{ animation: "jr-dash 1.4s linear infinite", opacity: 0.85 }}
+            />
+          ))}
+
+        <g>
+          <rect x={srcX} y={cy - srcH / 2} width={srcW} height={srcH} rx={12} fill="url(#fo-node)" stroke="#2a2a33" />
+          <rect x={srcX} y={cy - srcH / 2} width={srcW} height={srcH} rx={12} fill="none" stroke="url(#fo-stroke)" opacity={0.4} />
+          <text x={srcX + srcW / 2} y={cy + 4} fill={DIAGRAM_INK} fontSize="12.5" fontWeight={600} textAnchor="middle">{source}</text>
+        </g>
+
+        {workerCenters.map((w, i) => (
+          <g key={`wn-${i}`}>
+            <rect x={wkX} y={w.y - wkH / 2} width={wkW} height={wkH} rx={10} fill="url(#fo-node)" stroke="#23232b" />
+            <text x={wkX + wkW / 2} y={w.y + 4} fill="#cfcfd6" fontSize="11.5" fontWeight={500} textAnchor="middle">{workers[i]}</text>
+          </g>
+        ))}
+
+        {hasMerge && (
+          <g>
+            <rect x={mgX} y={cy - mgH / 2} width={mgW} height={mgH} rx={12} fill="url(#fo-node)" stroke="#2a2a33" />
+            <rect x={mgX} y={cy - mgH / 2} width={mgW} height={mgH} rx={12} fill="none" stroke="url(#fo-stroke)" opacity={0.4} />
+            <text x={mgX + mgW / 2} y={cy + 4} fill={DIAGRAM_INK} fontSize="12.5" fontWeight={600} textAnchor="middle">{merge}</text>
+          </g>
+        )}
+      </svg>
     </div>
   );
 }
